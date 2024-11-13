@@ -94,10 +94,6 @@ chatollama/
    - 确保安装了所有依赖
    - 尝试重新启动应用
 
-## 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
 ## 许可证
 
 [MIT License](LICENSE) 

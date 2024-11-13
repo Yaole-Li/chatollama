@@ -214,7 +214,7 @@ class MessageWidget(QWidget):
         if is_user:
             bubble_style = """
                 QTextBrowser {
-                    background-color: #0078d4;
+                    background-color: rgba(0, 120, 212, 0.8);
                     color: white;
                     border-radius: 15px;
                     padding: 10px;
@@ -234,7 +234,7 @@ class MessageWidget(QWidget):
         else:
             bubble_style = """
                 QTextBrowser {
-                    background-color: #2d2d2d;
+                    background-color: rgba(45, 45, 45, 0.8);
                     color: white;
                     border-radius: 15px;
                     padding: 10px;
@@ -484,44 +484,88 @@ class ChatWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AI 聊天助手")
-        self.setMinimumSize(800, 600)  # 设置最小窗口大小
+        self.setFixedSize(1000, 600)
         
-        # 设置窗口半透明
-        self.setWindowOpacity(0.95)
+        # 移除窗口边框
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        # 启用背景透明
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
         # 创建主窗口部件
         main_widget = QWidget()
+        main_widget.setObjectName("centralWidget")
         self.setCentralWidget(main_widget)
         
-        # 创建水平分割器
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-        
-        # 创建左侧对话列表
-        left_container = QWidget()
-        left_layout = QVBoxLayout(left_container)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.conversation_list = ConversationList()
-        left_layout.addWidget(self.conversation_list)
-        
-        # 添加垂直分隔线
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.VLine)
-        separator.setStyleSheet("""
-            QFrame {
-                color: #3d3d3d;
-                border: 1px solid #3d3d3d;
+        # 设置样式
+        main_widget.setStyleSheet("""
+            QWidget#centralWidget {
+                background: rgba(30, 30, 30, 0.95);
+                border: 1px solid rgba(61, 61, 61, 0.9);
+                border-radius: 15px;
             }
         """)
         
-        # 将左侧容器和分隔线添加到分割器
-        splitter.addWidget(left_container)
+        # 其余样式
+        self.setStyleSheet("""
+            QScrollArea {
+                background: rgba(30, 30, 30, 0.7);
+                border: none;
+                border-radius: 10px;
+            }
+            QLineEdit {
+                background-color: rgba(45, 45, 45, 0.95);
+                color: white;
+                border: 2px solid rgba(61, 61, 61, 0.9);
+                border-radius: 20px;
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+            QComboBox {
+                background-color: rgba(45, 45, 45, 0.95);
+                color: white;
+                padding: 8px;
+                border: 1px solid rgba(61, 61, 61, 0.9);
+                border-radius: 8px;
+                font-size: 14px;
+                min-width: 250px;
+            }
+            QPushButton {
+                background-color: rgba(0, 120, 212, 0.95);
+                color: white;
+                border: none;
+                border-radius: 20px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: rgba(0, 120, 212, 1.0);
+            }
+            QLabel {
+                color: rgba(255, 255, 255, 0.95);
+            }
+        """)
         
-        # 创建右侧聊天区域容器
+        # 初始化变量
+        self.chat_threads = {}
+        self.current_conversation = None
+        self.is_new_response = True
+        
+        # 创建主布局
+        layout = QVBoxLayout(main_widget)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # 创建分割器
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # 创建左侧对话列表
+        self.conversation_list = ConversationList()
+        self.conversation_list.setMinimumWidth(100)
+        self.conversation_list.setMaximumWidth(150)
+        splitter.addWidget(self.conversation_list)
+        
+        # 创建右侧聊天区域
         chat_container = QWidget()
         chat_layout = QVBoxLayout(chat_container)
-        chat_layout.setSpacing(10)
-        chat_layout.setContentsMargins(20, 20, 20, 20)
         
         # 添加模型选择区域
         model_layout = QHBoxLayout()
@@ -541,50 +585,12 @@ class ChatWindow(QMainWindow):
                 border: 1px solid #3d3d3d;
                 border-radius: 8px;
                 font-size: 14px;
-                min-width: 200px;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QComboBox::down-arrow {
-                image: url(down_arrow.png);
-                width: 12px;
-                height: 12px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #2d2d2d;
-                color: white;
-                selection-background-color: #3d3d3d;
-                selection-color: white;
-                border: 1px solid #3d3d3d;
-                border-radius: 5px;
+                min-width: 150px;
             }
         """)
-        
-        # 添加刷新按钮
-        refresh_button = QPushButton("刷新")
-        refresh_button.setFixedSize(60, 30)
-        refresh_button.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #0078d4;
-                border: 1px solid #0078d4;
-                border-radius: 5px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(0, 120, 212, 0.1);
-            }
-            QPushButton:pressed {
-                background-color: rgba(0, 120, 212, 0.2);
-            }
-        """)
-        refresh_button.clicked.connect(self.refresh_models)
         
         model_layout.addWidget(model_label)
         model_layout.addWidget(self.model_combo)
-        model_layout.addWidget(refresh_button)
         model_layout.addStretch()
         chat_layout.addLayout(model_layout)
         
@@ -605,29 +611,18 @@ class ChatWindow(QMainWindow):
                 padding: 10px 15px;
                 font-size: 14px;
             }
-            QLineEdit:focus {
-                border: 2px solid #0078d4;
-            }
         """)
         self.input_field.returnPressed.connect(self.send_message)
         
         self.send_button = QPushButton("发送")
-        self.send_button.setFixedSize(80, 40)
+        self.send_button.setFixedSize(60, 40)
         self.send_button.setStyleSheet("""
             QPushButton {
                 background-color: #0078d4;
                 color: white;
                 border: none;
                 border-radius: 20px;
-                padding: 8px 20px;
                 font-size: 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1084d9;
-            }
-            QPushButton:pressed {
-                background-color: #006cbd;
             }
         """)
         self.send_button.clicked.connect(self.send_message)
@@ -637,27 +632,16 @@ class ChatWindow(QMainWindow):
         chat_layout.addLayout(input_layout)
         
         splitter.addWidget(chat_container)
-        
-        # 设置主布局
-        main_layout = QHBoxLayout(main_widget)
-        main_layout.addWidget(splitter)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # 初始化变量
-        self.current_conversation = None
-        self.is_new_response = True
-        self.chat_threads = {}  # 保存每个对话的线程
+        layout.addWidget(splitter)
         
         # 连接信号
         self.conversation_list.new_chat_btn.clicked.connect(self.new_conversation)
         self.conversation_list.list_widget.itemClicked.connect(self.load_conversation)
-        
-        # 设置分割器的初始比例
-        splitter.setStretchFactor(0, 1)  # 左侧权重为1
-        splitter.setStretchFactor(1, 3)  # 右侧权重为3
-        
-        # 创建新对话
-        self.new_conversation()
+    
+    def focusOutEvent(self, event):
+        """当窗口失去焦点时隐藏"""
+        self.hide()
+        super().focusOutEvent(event)
         
     def new_conversation(self):
         """创建新对话"""
